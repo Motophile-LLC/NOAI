@@ -12,8 +12,10 @@ interface PromptFirstChatViewProps {
   input: string;
   onChangeInput: (val: string) => void;
   onSubmit: (e: React.FormEvent) => void;
-  isFakeMicActive: boolean;
-  onToggleFakeMic: () => void;
+  isListening: boolean;
+  isVoiceProcessing: boolean;
+  onToggleMic: () => void;
+  onStopListening: () => void;
   onSelectPrompt: (promptText: string) => void;
 }
 
@@ -24,8 +26,10 @@ export function PromptFirstChatView({
   input,
   onChangeInput,
   onSubmit,
-  isFakeMicActive,
-  onToggleFakeMic,
+  isListening,
+  isVoiceProcessing,
+  onToggleMic,
+  onStopListening,
   onSelectPrompt,
 }: PromptFirstChatViewProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -62,8 +66,10 @@ export function PromptFirstChatView({
               input={input}
               onChangeInput={onChangeInput}
               onSubmit={onSubmit}
-              isFakeMicActive={isFakeMicActive}
-              onToggleFakeMic={onToggleFakeMic}
+              isListening={isListening}
+              isVoiceProcessing={isVoiceProcessing}
+              onToggleMic={onToggleMic}
+              onStopListening={onStopListening}
               disabled={isThinking}
             />
 
@@ -149,8 +155,10 @@ export function PromptFirstChatView({
             input={input}
             onChangeInput={onChangeInput}
             onSubmit={onSubmit}
-            isFakeMicActive={isFakeMicActive}
-            onToggleFakeMic={onToggleFakeMic}
+            isListening={isListening}
+            isVoiceProcessing={isVoiceProcessing}
+            onToggleMic={onToggleMic}
+            onStopListening={onStopListening}
             disabled={isThinking}
           />
         </div>

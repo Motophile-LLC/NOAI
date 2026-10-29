@@ -15,7 +15,6 @@ import {
   saveActiveModelId,
   createNewThread,
   deleteThread,
-  clearAllThreads,
 } from '@/lib/storage';
 
 export default function AppPage() {
@@ -25,7 +24,8 @@ export default function AppPage() {
   const [selectedModelId, setSelectedModelId] = useState<string>('noai-core');
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
-  const [isFakeMicActive, setIsFakeMicActive] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -58,7 +58,8 @@ export default function AppPage() {
     setThreads(getStoredThreads());
     setActiveId(fresh.id);
     setInput('');
-    setIsFakeMicActive(false);
+    setIsListening(false);
+    setIsVoiceProcessing(false);
   };
 
   const handleSendMessage = (userText: string) => {
@@ -91,7 +92,8 @@ export default function AppPage() {
 
     setInput('');
     setIsThinking(true);
-    setIsFakeMicActive(false);
+    setIsListening(false);
+    setIsVoiceProcessing(false);
 
     // 1.0 second restrained delay
     setTimeout(() => {
@@ -105,16 +107,26 @@ export default function AppPage() {
     }, 1000);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input.trim()) {
-      handleSendMessage(input.trim());
+  const handleToggleMic = () => {
+    if (isListening) {
+      handleStopListening();
+    } else {
+      setIsListening(true);
     }
+  };
+
+  const handleStopListening = () => {
+    setIsListening(false);
+    setIsVoiceProcessing(true);
+
+    setTimeout(() => {
+      setIsVoiceProcessing(false);
+      handleSendMessage("Voice query request");
+    }, 1000);
   };
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-[#08090d] text-slate-100 font-sans">
-      {/* Slim Quiet Secondary Sidebar */}
       <QuietSidebar
         threads={mounted ? threads : []}
         activeThreadId={mounted ? activeThreadId : null}
@@ -125,7 +137,6 @@ export default function AppPage() {
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
 
-      {/* Main Content Area */}
       <div className="flex flex-1 flex-col h-full min-w-0">
         <MinimalHeader
           selectedModelId={selectedModelId}
@@ -141,9 +152,11 @@ export default function AppPage() {
             activeModelName={activeModel.name}
             input={input}
             onChangeInput={setInput}
-            onSubmit={handleSubmit}
-            isFakeMicActive={isFakeMicActive}
-            onToggleFakeMic={() => setIsFakeMicActive(!isFakeMicActive)}
+            onSubmit={(e) => { e.preventDefault(); if (input.trim()) handleSendMessage(input.trim()); }}
+            isListening={isListening}
+            isVoiceProcessing={isVoiceProcessing}
+            onToggleMic={handleToggleMic}
+            onStopListening={handleStopListening}
             onSelectPrompt={(text) => handleSendMessage(text)}
           />
         </main>
@@ -151,6 +164,7 @@ export default function AppPage() {
     </div>
   );
 }
+
 
 
 
