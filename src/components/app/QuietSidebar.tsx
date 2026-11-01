@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { ChatThread } from '@/lib/storage';
-import { Plus, MessageSquare, Trash2, Sparkles, X } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Sparkles, X, AudioLines } from 'lucide-react';
 
 interface QuietSidebarProps {
   threads: ChatThread[];
@@ -25,18 +25,15 @@ export function QuietSidebar({
 }: QuietSidebarProps) {
   return (
     <>
-      {/* Mobile Drawer Backdrop */}
       {isOpen && (
         <div onClick={onCloseMobile} className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 md:hidden" />
       )}
 
-      {/* Slim Quiet Sidebar Panel */}
       <aside
         className={`fixed md:static top-0 left-0 bottom-0 z-50 flex w-56 flex-col border-r border-white/[0.04] bg-[#07080c] transition-transform duration-300 md:translate-x-0 shrink-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand Header */}
         <div className="flex h-14 items-center justify-between px-4 border-b border-white/[0.04]">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-surface border border-white/10">
@@ -49,7 +46,6 @@ export function QuietSidebar({
           </button>
         </div>
 
-        {/* New Chat Action */}
         <div className="p-2.5">
           <button
             type="button"
@@ -64,13 +60,13 @@ export function QuietSidebar({
           </button>
         </div>
 
-        {/* Chat History List */}
         <div className="flex-1 overflow-y-auto px-2 py-1 space-y-0.5">
           {threads.length === 0 ? (
             <div className="px-3 py-6 text-center text-xs text-slate-600 italic">No saved chats</div>
           ) : (
             threads.map((t) => {
               const isActive = t.id === activeThreadId;
+              const isVoiceThread = t.title === 'Voice message';
               return (
                 <div
                   key={t.id}
@@ -88,7 +84,11 @@ export function QuietSidebar({
                     }}
                     className="flex items-center gap-2 min-w-0 flex-1 text-left truncate"
                   >
-                    <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-noai-cyan' : 'text-slate-600'}`} />
+                    {isVoiceThread ? (
+                      <AudioLines className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-noai-cyan' : 'text-slate-600'}`} />
+                    ) : (
+                      <MessageSquare className={`h-3.5 w-3.5 shrink-0 ${isActive ? 'text-noai-cyan' : 'text-slate-600'}`} />
+                    )}
                     <span className="truncate">{t.title}</span>
                   </button>
 

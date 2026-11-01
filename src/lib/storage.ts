@@ -3,6 +3,11 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  type?: 'text' | 'voice';
+  meta?: {
+    durationLabel?: string;
+    waveform?: number[];
+  };
 }
 
 export interface ChatThread {
@@ -12,6 +17,8 @@ export interface ChatThread {
   updatedAt: number;
   model: string;
   messages: Message[];
+  hasShownModelUpsell?: boolean;
+  hasHandledModelUpsell?: boolean;
 }
 
 const THREADS_KEY = 'noai_chat_threads';
@@ -71,6 +78,8 @@ export function createNewThread(initialTitle: string = 'New Conversation', model
     updatedAt: now,
     model: modelId,
     messages: [],
+    hasShownModelUpsell: false,
+    hasHandledModelUpsell: false,
   };
 
   const existing = getStoredThreads();
@@ -96,4 +105,3 @@ export function clearAllThreads(): void {
   localStorage.removeItem(THREADS_KEY);
   localStorage.removeItem(ACTIVE_THREAD_KEY);
 }
-

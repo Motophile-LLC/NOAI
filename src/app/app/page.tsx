@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MinimalHeader, MODEL_VARIANTS } from '@/components/app/MinimalHeader';
 import { QuietSidebar } from '@/components/app/QuietSidebar';
 import { PromptFirstChatView } from '@/components/app/PromptFirstChatView';
@@ -17,6 +17,14 @@ import {
   deleteThread,
 } from '@/lib/storage';
 
+function buildFakeWaveform(): number[] {
+  return [10, 18, 12, 24, 16, 28, 20, 14, 26, 17, 22, 11, 19, 15, 25, 13, 21, 9];
+}
+
+function getVoiceThreadTitle(): string {
+  return 'Voice message';
+}
+
 export default function AppPage() {
   const [mounted, setMounted] = useState(false);
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -27,6 +35,8 @@ export default function AppPage() {
   const [isListening, setIsListening] = useState(false);
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const voiceProcessingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const assistantReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -48,41 +58,100 @@ export default function AppPage() {
       setThreads([initialThread]);
       setActiveId(initialThread.id);
     }
+
+    return () => {
+      if (voiceProcessingTimeoutRef.current) clearTimeout(voiceProcessingTimeoutRef.current);
+      if (assistantReplyTimeoutRef.current) clearTimeout(assistantReplyTimeoutRef.current);
+    };
   }, []);
 
   const activeThread = threads.find((t) => t.id === activeThreadId) || null;
   const activeModel = MODEL_VARIANTS.find((m) => m.id === selectedModelId) || MODEL_VARIANTS[0];
 
   const handleNewChat = () => {
+    if (voiceProcessingTimeoutRef.current) clearTimeout(voiceProcessingTimeoutRef.current);
+    if (assistantReplyTimeoutRef.current) clearTimeout(assistantReplyTimeoutRef.current);
+
     const fresh = createNewThread('New Chat', selectedModelId);
     setThreads(getStoredThreads());
     setActiveId(fresh.id);
     setInput('');
     setIsListening(false);
     setIsVoiceProcessing(false);
+    setIsThinking(false);
   };
 
-  const handleSendMessage = (userText: string) => {
+  const updateThread = (threadId: string, updater: (thread: ChatThread) => ChatThread) => {
+    const updatedThreads = threads.map((thread) => (thread.id === threadId ? updater(thread) : thread));
+    setThreads(updatedThreads);
+    saveThreads(updatedThreads);
+  };
+
+  const handleDismissModelUpsell = () => {
+    if (!activeThread) return;
+    updateThread(activeThread.id, (thread) => ({
+      ...thread,
+      hasHandledModelUpsell: true,
+      updatedAt: Date.now(),
+    }));
+  };
+
+  const handleSelectUpsellModel = (id: string) => {
+    setSelectedModelId(id);
+    saveActiveModelId(id);
+
+    if (!activeThread) return;
+    updateThread(activeThread.id, (thread) => ({
+      ...thread,
+      model: id,
+      hasHandledModelUpsell: true,
+      updatedAt: Date.now(),
+    }));
+  };
+
+  const handleSendMessage = (userText: string, options?: { type?: 'text' | 'voice'; meta?: Message['meta'] }) => {
     if (!userText.trim() || isThinking) return;
+
+    if (assistantReplyTimeoutRef.current) clearTimeout(assistantReplyTimeoutRef.current);
 
     let currentThread = activeThread;
     let currentThreads = [...threads];
 
     if (!currentThread) {
-      currentThread = createNewThread(userText.slice(0, 24), selectedModelId);
+      currentThread = createNewThread(
+        options?.type === 'voice' ? getVoiceThreadTitle() : userText.slice(0, 24),
+        selectedModelId,
+      );
       currentThreads = getStoredThreads();
       setActiveId(currentThread.id);
     }
 
-    const userMsg: Message = { id: 'u_' + Date.now(), role: 'user', content: userText, timestamp: Date.now() };
-    const updatedTitle = currentThread.messages.length === 0
-      ? (userText.length > 24 ? userText.slice(0, 24) + '...' : userText)
+    const userMsg: Message = {
+      id: 'u_' + Date.now(),
+      role: 'user',
+      content: userText,
+      timestamp: Date.now(),
+      type: options?.type || 'text',
+      meta: options?.meta,
+    };
+
+    const isFirstMessage = currentThread.messages.length === 0;
+    const updatedTitle = isFirstMessage
+      ? (options?.type === 'voice'
+          ? getVoiceThreadTitle()
+          : (userText.length > 24 ? userText.slice(0, 24) + '...' : userText))
       : currentThread.title;
+
+    const userPromptCount = currentThread.messages.filter((msg) => msg.role === 'user').length + 1;
+    const shouldShowUpsell = !currentThread.hasShownModelUpsell && userPromptCount >= 3;
 
     const updatedThread: ChatThread = {
       ...currentThread,
       title: updatedTitle,
       updatedAt: Date.now(),
+      model: selectedModelId,
+      hasShownModelUpsell: currentThread.hasShownModelUpsell || shouldShowUpsell,
+      hasHandledModelUpsell: currentThread.hasHandledModelUpsell || false,
       messages: [...currentThread.messages, userMsg],
     };
 
@@ -95,15 +164,14 @@ export default function AppPage() {
     setIsListening(false);
     setIsVoiceProcessing(false);
 
-    // 1.0 second restrained delay
-    setTimeout(() => {
-      // CENTRAL RULE: Response content is ALWAYS exactly "No."
-      const assistantMsg: Message = { id: 'a_' + Date.now(), role: 'assistant', content: 'No.', timestamp: Date.now() };
+    assistantReplyTimeoutRef.current = setTimeout(() => {
+      const assistantMsg: Message = { id: 'a_' + Date.now(), role: 'assistant', content: 'No.', timestamp: Date.now(), type: 'text' };
       const finalThread: ChatThread = { ...updatedThread, updatedAt: Date.now(), messages: [...updatedThread.messages, assistantMsg] };
       const finalThreads = nextThreads.map((t) => (t.id === finalThread.id ? finalThread : t));
       setThreads(finalThreads);
       saveThreads(finalThreads);
       setIsThinking(false);
+      assistantReplyTimeoutRef.current = null;
     }, 1000);
   };
 
@@ -116,12 +184,23 @@ export default function AppPage() {
   };
 
   const handleStopListening = () => {
+    if (!isListening || isThinking || isVoiceProcessing) return;
+
+    if (voiceProcessingTimeoutRef.current) clearTimeout(voiceProcessingTimeoutRef.current);
+
     setIsListening(false);
     setIsVoiceProcessing(true);
 
-    setTimeout(() => {
+    voiceProcessingTimeoutRef.current = setTimeout(() => {
       setIsVoiceProcessing(false);
-      handleSendMessage("Voice query request");
+      voiceProcessingTimeoutRef.current = null;
+      handleSendMessage('Voice message', {
+        type: 'voice',
+        meta: {
+          durationLabel: '0:06',
+          waveform: buildFakeWaveform(),
+        },
+      });
     }, 1000);
   };
 
@@ -158,16 +237,13 @@ export default function AppPage() {
             onToggleMic={handleToggleMic}
             onStopListening={handleStopListening}
             onSelectPrompt={(text) => handleSendMessage(text)}
+            showModelUpsell={Boolean(activeThread?.hasShownModelUpsell && !activeThread?.hasHandledModelUpsell)}
+            onSelectUpsellModel={handleSelectUpsellModel}
+            onDismissUpsell={handleDismissModelUpsell}
+            selectedModelId={selectedModelId}
           />
         </main>
       </div>
     </div>
   );
 }
-
-
-
-
-
-
-

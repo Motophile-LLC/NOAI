@@ -20,7 +20,6 @@
   --accent-pink: #ec4899;
 }
 
-/* Base Resets for Custom Controls */
 @layer base {
   button, input, textarea, select {
     background-color: transparent;
@@ -43,7 +42,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Glass Surface Pattern */
 .glass-surface {
   background: var(--surface-base);
   backdrop-filter: blur(20px);
@@ -56,14 +54,12 @@ body {
   border-color: var(--surface-border-hover);
 }
 
-/* Gradient Text Effect */
 .text-gradient {
   background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 50%, var(--accent-pink) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -79,5 +75,79 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
+@keyframes voice-bar-idle {
+  0%, 100% {
+    transform: scaleY(0.82);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scaleY(1.08);
+    opacity: 1;
+  }
+}
 
+@keyframes voice-bubble-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
 
+@keyframes voice-recording-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+  70%, 100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes voice-processing-sheen {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.voice-wave-bar,
+.voice-recording-bar,
+.voice-processing-bar {
+  transform-origin: center bottom;
+  animation: voice-bar-idle 1.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.voice-bubble-enter {
+  animation: voice-bubble-enter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.voice-recording-ring {
+  animation: voice-recording-ring 1.8s ease-out infinite;
+}
+
+.voice-processing-sheen {
+  background-size: 200% 200%;
+  animation: voice-processing-sheen 2.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-wave-bar,
+  .voice-recording-bar,
+  .voice-processing-bar,
+  .voice-bubble-enter,
+  .voice-recording-ring,
+  .voice-processing-sheen {
+    animation: none !important;
+    transition: none !important;
+  }
+}
