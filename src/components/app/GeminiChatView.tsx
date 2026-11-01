@@ -15,6 +15,7 @@ interface GeminiChatViewProps {
   isFakeMicActive: boolean;
   onToggleFakeMic: () => void;
   onSelectPrompt: (promptText: string) => void;
+  suggestedPrompts: string[];
 }
 
 export function GeminiChatView({
@@ -27,16 +28,10 @@ export function GeminiChatView({
   isFakeMicActive,
   onToggleFakeMic,
   onSelectPrompt,
+  suggestedPrompts,
 }: GeminiChatViewProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-
-  const suggestedPrompts = [
-    "Write a Python web scraping script",
-    "Explain quantum entanglement simply",
-    "Draft a 5-year business expansion plan",
-    "Will AI replace software developers?",
-  ];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,17 +46,14 @@ export function GeminiChatView({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative">
       {messages.length === 0 ? (
-        /* Empty State — Prompt-First Centered UX */
         <div className="flex-1 overflow-y-auto px-4 py-8 flex flex-col justify-center items-center">
           <div className="w-full max-w-2xl mx-auto text-center space-y-8">
-            {/* Centered Heading */}
             <div className="space-y-2">
               <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
                 What can <span className="text-gradient">No.AI</span> help with?
               </h1>
             </div>
 
-            {/* Hero Composer Box */}
             <GeminiComposer
               input={input}
               onChangeInput={onChangeInput}
@@ -72,8 +64,7 @@ export function GeminiChatView({
               isHero={true}
             />
 
-            {/* Suggestion Chips */}
-            <div className="flex flex-wrap justify-center gap-2 pt-1 max-w-xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-2 pt-1 max-w-2xl mx-auto">
               {suggestedPrompts.map((p, idx) => (
                 <button
                   key={idx}
@@ -88,7 +79,6 @@ export function GeminiChatView({
           </div>
         </div>
       ) : (
-        /* Active Chat Message Stream */
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {messages.map((msg) => (
             <div
@@ -130,7 +120,6 @@ export function GeminiChatView({
             </div>
           ))}
 
-          {/* Thinking State */}
           {isThinking && (
             <div className="max-w-3xl mx-auto flex flex-col items-start space-y-1.5">
               <div className="text-[10px] font-mono text-slate-500 flex items-center gap-1.5">
@@ -147,7 +136,6 @@ export function GeminiChatView({
         </div>
       )}
 
-      {/* Bottom Sticky Composer (Only in Active Stream) */}
       {messages.length > 0 && (
         <div className="p-4 border-t border-white/[0.04] bg-background/80 backdrop-blur-xl shrink-0">
           <GeminiComposer
