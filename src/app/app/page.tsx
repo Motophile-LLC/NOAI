@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { X } from 'lucide-react';
 import { MinimalHeader, MODEL_VARIANTS } from '@/components/app/MinimalHeader';
 import { QuietSidebar } from '@/components/app/QuietSidebar';
 import { PromptFirstChatView } from '@/components/app/PromptFirstChatView';
@@ -89,6 +90,55 @@ function pickSuggestedPrompts(previousSubset: string[] = [], count: number = 6):
   return nextSubset;
 }
 
+function ServiceModal({
+  serviceName,
+  onClose,
+}: {
+  serviceName: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label="Close modal backdrop"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/75 backdrop-blur-md"
+      />
+      <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-[linear-gradient(135deg,rgba(15,17,24,0.98),rgba(18,24,39,0.96))] shadow-[0_30px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl">
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Capability</div>
+            <h2 className="mt-1 text-base font-semibold text-white">{serviceName}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-2 text-slate-400 transition-colors hover:bg-white/[0.06] hover:text-white"
+            aria-label="Close modal"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-5 py-10 text-center">
+          <div className="text-3xl font-mono font-bold text-white">No.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppPage() {
   const [mounted, setMounted] = useState(false);
   const [threads, setThreads] = useState<ChatThread[]>([]);
@@ -100,6 +150,7 @@ export default function AppPage() {
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>(() => pickSuggestedPrompts());
+  const [activeServiceName, setActiveServiceName] = useState<string | null>(null);
   const voiceProcessingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assistantReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -276,53 +327,63 @@ export default function AppPage() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#08090d] text-slate-100 font-sans">
-      <QuietSidebar
-        threads={mounted ? threads : []}
-        activeThreadId={mounted ? activeThreadId : null}
-        onSelectThread={(id) => {
-          setActiveId(id);
-          setActiveThreadId(id);
-          const nextThread = threads.find((thread) => thread.id === id);
-          if (nextThread?.messages.length === 0) {
-            setSuggestedPrompts((current) => pickSuggestedPrompts(current));
-          }
-        }}
-        onNewChat={handleNewChat}
-        onDeleteThread={(id) => { const updated = deleteThread(id); setThreads(updated); if (activeThreadId === id && updated.length > 0) setActiveId(updated[0].id); }}
-        isOpen={mobileSidebarOpen}
-        onCloseMobile={() => setMobileSidebarOpen(false)}
-      />
-
-      <div className="flex flex-1 flex-col h-full min-w-0">
-        <MinimalHeader
-          selectedModelId={selectedModelId}
-          onSelectModel={(id) => { setSelectedModelId(id); saveActiveModelId(id); }}
-          onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+    <>
+      <div className="flex h-screen w-screen overflow-hidden bg-[#08090d] text-slate-100 font-sans">
+        <QuietSidebar
+          threads={mounted ? threads : []}
+          activeThreadId={mounted ? activeThreadId : null}
+          onSelectThread={(id) => {
+            setActiveId(id);
+            setActiveThreadId(id);
+            const nextThread = threads.find((thread) => thread.id === id);
+            if (nextThread?.messages.length === 0) {
+              setSuggestedPrompts((current) => pickSuggestedPrompts(current));
+            }
+          }}
           onNewChat={handleNewChat}
+          onDeleteThread={(id) => { const updated = deleteThread(id); setThreads(updated); if (activeThreadId === id && updated.length > 0) setActiveId(updated[0].id); }}
+          onOpenService={setActiveServiceName}
+          isOpen={mobileSidebarOpen}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
         />
 
-        <main className="flex-1 min-h-0 relative flex flex-col">
-          <PromptFirstChatView
-            messages={mounted && activeThread ? activeThread.messages : []}
-            isThinking={isThinking}
-            activeModelName={activeModel.name}
-            input={input}
-            onChangeInput={setInput}
-            onSubmit={(e) => { e.preventDefault(); if (input.trim()) handleSendMessage(input.trim()); }}
-            isListening={isListening}
-            isVoiceProcessing={isVoiceProcessing}
-            onToggleMic={handleToggleMic}
-            onStopListening={handleStopListening}
-            onSelectPrompt={(text) => handleSendMessage(text)}
-            showModelUpsell={Boolean(activeThread?.hasShownModelUpsell && !activeThread?.hasHandledModelUpsell)}
-            onSelectUpsellModel={handleSelectUpsellModel}
-            onDismissUpsell={handleDismissModelUpsell}
+        <div className="flex flex-1 flex-col h-full min-w-0">
+          <MinimalHeader
             selectedModelId={selectedModelId}
-            suggestedPrompts={suggestedPrompts}
+            onSelectModel={(id) => { setSelectedModelId(id); saveActiveModelId(id); }}
+            onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
+            onNewChat={handleNewChat}
           />
-        </main>
+
+          <main className="flex-1 min-h-0 relative flex flex-col">
+            <PromptFirstChatView
+              messages={mounted && activeThread ? activeThread.messages : []}
+              isThinking={isThinking}
+              activeModelName={activeModel.name}
+              input={input}
+              onChangeInput={setInput}
+              onSubmit={(e) => { e.preventDefault(); if (input.trim()) handleSendMessage(input.trim()); }}
+              isListening={isListening}
+              isVoiceProcessing={isVoiceProcessing}
+              onToggleMic={handleToggleMic}
+              onStopListening={handleStopListening}
+              onSelectPrompt={(text) => handleSendMessage(text)}
+              showModelUpsell={Boolean(activeThread?.hasShownModelUpsell && !activeThread?.hasHandledModelUpsell)}
+              onSelectUpsellModel={handleSelectUpsellModel}
+              onDismissUpsell={handleDismissModelUpsell}
+              selectedModelId={selectedModelId}
+              suggestedPrompts={suggestedPrompts}
+            />
+          </main>
+        </div>
       </div>
-    </div>
+
+      {activeServiceName && (
+        <ServiceModal
+          serviceName={activeServiceName}
+          onClose={() => setActiveServiceName(null)}
+        />
+      )}
+    </>
   );
 }
