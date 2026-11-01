@@ -17,12 +17,76 @@ import {
   deleteThread,
 } from '@/lib/storage';
 
+const CURATED_SUGGESTED_PROMPTS = [
+  'Will AI replace software developers?',
+  'Will most knowledge work eventually be automated?',
+  'Can companies use AI responsibly at global scale?',
+  'Will AI make expertise less valuable over time?',
+  'Can a machine ever be meaningfully conscious?',
+  'Will artificial general intelligence happen in our lifetime?',
+  'Is AI progress moving faster than society can adapt?',
+  'Will technology eventually reduce the need for human creativity?',
+  'Should I leave a stable career to build a startup?',
+  'Should our company prioritize growth or profitability right now?',
+  'Is it still possible to build a defensible SaaS business today?',
+  'Should we raise capital now or wait for better conditions?',
+  'How do you know when a product is actually good enough to scale?',
+  'Is founder-led sales still the best path for an early-stage startup?',
+  'Should we optimize for retention before growth?',
+  'Can a company scale without losing product quality?',
+  'How do I know if I’m making the wrong life choice?',
+  'Does working harder actually lead to a better life?',
+  'How do I know if I’ve outgrown my career?',
+  'Should I optimize for money, meaning, or freedom?',
+  'How do I tell the difference between burnout and lack of purpose?',
+  'What if I’ve built my life around the wrong goal?',
+  'How do I know when it’s too late to start over?',
+  'Is ambition quietly making my life worse?',
+  'Can trust ever fully return after betrayal?',
+  'How do you know when a relationship is no longer worth saving?',
+  'Is loneliness becoming a permanent feature of modern life?',
+  'Can people really change in meaningful ways?',
+  'How do you know whether to forgive someone?',
+  'Does modern life make deep relationships harder to build?',
+  'Will technology make people more isolated over time?',
+  'Does progress actually make human life better?',
+  'Are people becoming less patient because of technology?',
+  'Is convenience making people less resilient?',
+  'Can a society stay healthy without shared meaning?',
+  'Is modern life optimized for productivity at the cost of wisdom?',
+  'Are we becoming more informed but less thoughtful?',
+  'Does having more choices make people less happy?'
+];
+
 function buildFakeWaveform(): number[] {
   return [10, 18, 12, 24, 16, 28, 20, 14, 26, 17, 22, 11, 19, 15, 25, 13, 21, 9];
 }
 
 function getVoiceThreadTitle(): string {
   return 'Voice message';
+}
+
+function pickSuggestedPrompts(previousSubset: string[] = [], count: number = 6): string[] {
+  const pool = [...CURATED_SUGGESTED_PROMPTS];
+
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+
+  let nextSubset = pool.slice(0, count);
+
+  if (
+    previousSubset.length === count &&
+    nextSubset.every((prompt, index) => prompt === previousSubset[index])
+  ) {
+    nextSubset = pool.slice(count, count * 2);
+    if (nextSubset.length < count) {
+      nextSubset = pool.slice(0, count);
+    }
+  }
+
+  return nextSubset;
 }
 
 export default function AppPage() {
@@ -35,6 +99,7 @@ export default function AppPage() {
   const [isListening, setIsListening] = useState(false);
   const [isVoiceProcessing, setIsVoiceProcessing] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>(() => pickSuggestedPrompts());
   const voiceProcessingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assistantReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -47,16 +112,21 @@ export default function AppPage() {
     if (storedThreads.length > 0) {
       setThreads(storedThreads);
       const activeId = getActiveThreadId();
-      if (activeId && storedThreads.some((t) => t.id === activeId)) {
-        setActiveId(activeId);
-      } else {
-        setActiveId(storedThreads[0].id);
-        setActiveThreadId(storedThreads[0].id);
+      const resolvedActiveThread = activeId && storedThreads.some((t) => t.id === activeId)
+        ? storedThreads.find((t) => t.id === activeId) || storedThreads[0]
+        : storedThreads[0];
+
+      setActiveId(resolvedActiveThread.id);
+      setActiveThreadId(resolvedActiveThread.id);
+
+      if (resolvedActiveThread.messages.length === 0) {
+        setSuggestedPrompts((current) => pickSuggestedPrompts(current));
       }
     } else {
       const initialThread = createNewThread('New Chat', storedModel);
       setThreads([initialThread]);
       setActiveId(initialThread.id);
+      setSuggestedPrompts((current) => pickSuggestedPrompts(current));
     }
 
     return () => {
@@ -79,6 +149,7 @@ export default function AppPage() {
     setIsListening(false);
     setIsVoiceProcessing(false);
     setIsThinking(false);
+    setSuggestedPrompts((current) => pickSuggestedPrompts(current));
   };
 
   const updateThread = (threadId: string, updater: (thread: ChatThread) => ChatThread) => {
@@ -209,7 +280,14 @@ export default function AppPage() {
       <QuietSidebar
         threads={mounted ? threads : []}
         activeThreadId={mounted ? activeThreadId : null}
-        onSelectThread={(id) => { setActiveId(id); setActiveThreadId(id); }}
+        onSelectThread={(id) => {
+          setActiveId(id);
+          setActiveThreadId(id);
+          const nextThread = threads.find((thread) => thread.id === id);
+          if (nextThread?.messages.length === 0) {
+            setSuggestedPrompts((current) => pickSuggestedPrompts(current));
+          }
+        }}
         onNewChat={handleNewChat}
         onDeleteThread={(id) => { const updated = deleteThread(id); setThreads(updated); if (activeThreadId === id && updated.length > 0) setActiveId(updated[0].id); }}
         isOpen={mobileSidebarOpen}
@@ -241,6 +319,7 @@ export default function AppPage() {
             onSelectUpsellModel={handleSelectUpsellModel}
             onDismissUpsell={handleDismissModelUpsell}
             selectedModelId={selectedModelId}
+            suggestedPrompts={suggestedPrompts}
           />
         </main>
       </div>

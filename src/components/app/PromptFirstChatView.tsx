@@ -22,6 +22,7 @@ interface PromptFirstChatViewProps {
   selectedModelId: string;
   onSelectUpsellModel: (id: string) => void;
   onDismissUpsell: () => void;
+  suggestedPrompts: string[];
 }
 
 function VoiceMessageBubble({ message }: { message: Message }) {
@@ -144,16 +145,10 @@ export function PromptFirstChatView({
   selectedModelId,
   onSelectUpsellModel,
   onDismissUpsell,
+  suggestedPrompts,
 }: PromptFirstChatViewProps) {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
-
-  const suggestedPrompts = [
-    'Write a Python web scraping script',
-    'Explain quantum entanglement simply',
-    'Draft a 5-year business expansion plan',
-    'Will AI replace software developers?',
-  ];
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
